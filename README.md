@@ -13,7 +13,7 @@ Here are command examples that help to solve the first puzzle:
 ```sh
 cd 2022/puzzle-01
 cargo build
-./target/debug/puzzle-01 3 < input.log
+./target/debug/main 3 < input.log
 ```
 
 Its free to use, under the [GNU GPL License](LICENSE).
