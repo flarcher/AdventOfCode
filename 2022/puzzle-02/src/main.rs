@@ -1,10 +1,15 @@
 
+use std::env;
 use std::cmp::Ordering;
 use std::io::{self, BufRead};
 use std::collections::HashMap;
 
-mod shape;
-use shape::Shape;
+#[derive(Debug, PartialEq, Eq, Hash)]
+enum Shape {
+    Rock,
+    Paper,
+    Scissor
+}
 
 fn play(player : &Shape, opponent : &Shape, may_recurse : bool) -> Ordering {
     if *player == *opponent {
@@ -64,14 +69,12 @@ fn solve_shape(opponent : &Shape, result: Ordering) -> &Shape {
 fn parse_line<'a>(mapper: &'a HashMap<u8, Shape>, line: &String) -> (&'a Shape, &'a Shape) {
     assert!(line.len() >= 3);
     let bytes = line.as_bytes();
-    println!("bytes= {:?}", bytes);
     let opponent = bytes[0];
     assert!(opponent.is_ascii());
     let opponent_shape = mapper.get(&opponent).unwrap();
     let player = bytes[2];
     assert!(player.is_ascii());
     let player_shape = mapper.get(&player).unwrap();
-    println!("shapes= {:?} {:?}", opponent_shape, player_shape);
     (opponent_shape, player_shape)
 }
 
@@ -87,9 +90,7 @@ fn get_score_from_line(
     line: &String,
     mode: &ReadingMode) -> i32 {
 
-    println!("line={}", line);
     let (opponent, player) = parse_line(char_map, line);
-    println!("parsed = {:?} {:?}", opponent, player);
 
     let play_result : Ordering = match mode {
         ReadingMode::Shape => {
@@ -99,7 +100,6 @@ fn get_score_from_line(
             *(result_map.get(&player).expect("Result not found"))
         }
     };
-    println!("result = {:?}", play_result);
 
     let player_shape = match mode {
         ReadingMode::Shape => {
@@ -109,7 +109,6 @@ fn get_score_from_line(
             &(solve_shape(&opponent, play_result))
         }
     };
-    println!("player shape = {:?}", player_shape);
 
     get_score(score_map, player_shape, play_result)
 }
@@ -117,7 +116,10 @@ fn get_score_from_line(
 fn main() {
 
     // Argument
-    let reading_mode : ReadingMode = ReadingMode::Shape;
+    let args: Vec<String> = env::args().collect();
+    let reading_mode : ReadingMode = if args.len() > 1
+        && ! String::from("shape").eq_ignore_ascii_case(args.get(1).unwrap())
+        { ReadingMode::PlayResult } else { ReadingMode::Shape };
 
     // Init
     let shape_scores = HashMap::from([
@@ -149,7 +151,6 @@ fn main() {
           let line_value : i32 = get_score_from_line(
             &parsing_mapping, &shape_scores, &result_mapping,
             &str, &reading_mode);
-          println!("Value={:?}", line_value);
           total += line_value;
         } else {
           break;
