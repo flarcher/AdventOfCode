@@ -1,47 +1,34 @@
+
 use std::cmp::Ordering;
-use std::io;
+use std::io::{self, BufRead};
 use std::collections::HashMap;
 
-static ROCK_OTHER     : u8 = "A".as_bytes()[0];
-static PAPER_OTHER    : u8 = "B".as_bytes()[0];
-static SCISSOR_OTHER  : u8 = "C".as_bytes()[0];
+mod shape;
+use shape::Shape;
 
-static ROCK_PLAYER    : u8 = "X".as_bytes()[0];
-static PAPER_PLAYER   : u8 = "Y".as_bytes()[0];
-static SCISSOR_PLAYER : u8 = "Z".as_bytes()[0];
-
-fn get_shape_score(score_map: & HashMap<u8, i32>, shape : u8) -> i32 {
-    if ! shape.is_ascii() {
-        panic!("Shape {} is not valid", shape);
-    }
-    else {
-        match score_map.get(&shape) {
-            Some(v) => *v,
-            None => panic!("Unknown shape {}", shape)
-        }
-    }
-}
-
-fn play(player : u8, opponent : u8) -> Ordering {
-    if player == opponent {
+fn play(player : &Shape, opponent : &Shape, may_recurse : bool) -> Ordering {
+    if *player == *opponent {
         Ordering::Equal
     }
     else if
-        (player == ROCK_PLAYER && opponent == SCISSOR_PLAYER) ||
-        (player == SCISSOR_PLAYER && opponent == PAPER_PLAYER) ||
-        (player == PAPER_PLAYER && opponent == ROCK_PLAYER) {
+        (*player == Shape::Rock && *opponent == Shape::Scissor) ||
+        (*player == Shape::Scissor && *opponent == Shape::Paper) ||
+        (*player == Shape::Paper && *opponent == Shape::Rock) {
         Ordering::Greater
     }
+    else if may_recurse {
+        play(opponent, player, false).reverse()
+    }
     else {
-        play(opponent, player).reverse()
+        panic!("Invalid state {:?} {:?}", player, opponent);
     }
 }
 
 fn get_score(
-        score_map: &HashMap<u8, i32>,
-        player : u8,
+        score_map: &HashMap<Shape, i32>,
+        player : &Shape,
         play_result : Ordering) -> i32 {
-    let shape_score = get_shape_score(score_map, player);
+    let shape_score = *(score_map.get(player).expect("Unknown shape"));
     let play_score = match play_result {
         Ordering::Less => 0,
         Ordering::Equal => 3,
@@ -50,36 +37,42 @@ fn get_score(
     shape_score + play_score
 }
 
-fn solve_shape(opponent : u8, result: Ordering) -> u8 {
+fn solve_shape(opponent : &Shape, result: Ordering) -> &Shape {
     match result {
         Ordering::Equal => opponent,
         Ordering::Less => {
-            if opponent == ROCK_PLAYER {
-                SCISSOR_PLAYER
-            } else if opponent == PAPER_PLAYER {
-                ROCK_PLAYER
+            if *opponent == Shape::Rock {
+                &Shape::Scissor
+            } else if *opponent == Shape::Paper {
+                &Shape::Rock
             } else { // SCISSOR
-                PAPER_PLAYER
+                &Shape::Paper
             }
         },
         Ordering::Greater => {
-            if opponent == ROCK_PLAYER {
-                PAPER_PLAYER
-            } else if opponent == PAPER_PLAYER {
-                SCISSOR_PLAYER
+            if *opponent == Shape::Rock {
+                &Shape::Paper
+            } else if *opponent == Shape::Paper {
+                &Shape::Scissor
             } else { // SCISSOR
-                ROCK_PLAYER
+                &Shape::Rock
             }
         }
     }
 }
 
-fn parse_line(mapper: &HashMap<u8, u8>, line: &String) -> (u8, u8) {
+fn parse_line<'a>(mapper: &'a HashMap<u8, Shape>, line: &String) -> (&'a Shape, &'a Shape) {
     assert!(line.len() >= 3);
     let bytes = line.as_bytes();
-    let opponent = mapper.get(&bytes[0]).unwrap();
+    println!("bytes= {:?}", bytes);
+    let opponent = bytes[0];
+    assert!(opponent.is_ascii());
+    let opponent_shape = mapper.get(&opponent).unwrap();
     let player = bytes[2];
-    (*opponent, player)
+    assert!(player.is_ascii());
+    let player_shape = mapper.get(&player).unwrap();
+    println!("shapes= {:?} {:?}", opponent_shape, player_shape);
+    (opponent_shape, player_shape)
 }
 
 enum ReadingMode {
@@ -88,31 +81,35 @@ enum ReadingMode {
 }
 
 fn get_score_from_line(
-    char_map: &HashMap<u8, u8>,
-    score_map: &HashMap<u8, i32>,
-    result_map: &HashMap<u8, Ordering>,
+    char_map: &HashMap<u8, Shape>,
+    score_map: &HashMap<Shape, i32>,
+    result_map: &HashMap<Shape, Ordering>,
     line: &String,
     mode: &ReadingMode) -> i32 {
-    
+
+    println!("line={}", line);
     let (opponent, player) = parse_line(char_map, line);
-    
+    println!("parsed = {:?} {:?}", opponent, player);
+
     let play_result : Ordering = match mode {
         ReadingMode::Shape => {
-            play(player, opponent)
+            play(&player, &opponent, true)
         },
         ReadingMode::PlayResult => {
-            *(result_map.get(&player).unwrap())
+            *(result_map.get(&player).expect("Result not found"))
         }
     };
+    println!("result = {:?}", play_result);
 
     let player_shape = match mode {
         ReadingMode::Shape => {
             player
         },
         ReadingMode::PlayResult => {
-            solve_shape(opponent, play_result)
+            &(solve_shape(&opponent, play_result))
         }
     };
+    println!("player shape = {:?}", player_shape);
 
     get_score(score_map, player_shape, play_result)
 }
@@ -120,44 +117,43 @@ fn get_score_from_line(
 fn main() {
 
     // Argument
-    let reading_mode : ReadingMode = ReadingMode::PlayResult; 
+    let reading_mode : ReadingMode = ReadingMode::Shape;
 
     // Init
-    assert!(ROCK_PLAYER != PAPER_PLAYER);
-    assert!(PAPER_PLAYER != SCISSOR_PLAYER);
-    assert!(SCISSOR_PLAYER != ROCK_PLAYER);
     let shape_scores = HashMap::from([
-        (ROCK_PLAYER,    1),
-        (PAPER_PLAYER,   2),
-        (SCISSOR_PLAYER, 3)
-    ]);
-    let shape_mapping = HashMap::from([
-        (ROCK_OTHER, ROCK_PLAYER),
-        (PAPER_OTHER, PAPER_PLAYER),
-        (SCISSOR_OTHER, SCISSOR_PLAYER)
+        (Shape::Rock,    1),
+        (Shape::Paper,   2),
+        (Shape::Scissor, 3),
     ]);
     let result_mapping = HashMap::from([
-        (ROCK_PLAYER, Ordering::Less),
-        (PAPER_PLAYER, Ordering::Equal),
-        (SCISSOR_PLAYER, Ordering::Greater)
+        (Shape::Rock, Ordering::Less),
+        (Shape::Paper, Ordering::Equal),
+        (Shape::Scissor, Ordering::Greater),
     ]);
-    let stdin : io::Stdin = io::stdin();
+    let parsing_mapping = HashMap::from([
+        ("A".as_bytes()[0], Shape::Rock),
+        ("B".as_bytes()[0], Shape::Paper),
+        ("C".as_bytes()[0], Shape::Scissor),
+        ("X".as_bytes()[0], Shape::Rock),
+        ("Y".as_bytes()[0], Shape::Paper),
+        ("Z".as_bytes()[0], Shape::Scissor),
+    ]);
 
     // Reading
-    let mut line = String::new();
+    let stdin : io::Stdin = io::stdin();
+    let mut lines = stdin.lock().lines();
     let mut total : i32 = 0;
     loop {
-        let bytes_count = stdin.read_line(&mut line).unwrap();
-        if bytes_count <= 0 {
-            break;
+        if let Some(line) = lines.next() {
+          let str = line.expect("Impossible to read line");
+          let line_value : i32 = get_score_from_line(
+            &parsing_mapping, &shape_scores, &result_mapping,
+            &str, &reading_mode);
+          println!("Value={:?}", line_value);
+          total += line_value;
+        } else {
+          break;
         }
-        else {
-            let line_value : i32 = get_score_from_line(
-                &shape_mapping, &shape_scores, &result_mapping,
-                &line, &reading_mode);
-            total += line_value;
-        }
-        line.clear();
     }
 
     // Printing
