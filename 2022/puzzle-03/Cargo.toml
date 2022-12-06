@@ -1,0 +1,11 @@
+[package]
+name = "puzzle-03"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+path = "src/main.rs"
+name = "main"
+
+[dependencies]
+intersection = "1.0.0"
