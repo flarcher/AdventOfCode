@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display};
 
 #[derive(Debug)]
 pub struct Range {
@@ -19,10 +19,31 @@ impl Range {
     pub fn contains(&self, other: &Range) -> bool {
         self.min <= other.min && self.max >= other.max
     }
+
+    pub fn has(&self, val: &u8) -> bool {
+        self.min >= *val && *val <= self.max
+    }
 }
 
 pub fn fully_overlap(left: &Range, right: &Range) -> bool {
     left.contains(right) || right.contains(left)
+}
+
+pub fn overlap(left: &Range, right: &Range) -> bool {
+    if left.max < right.min || right.max < left.min {
+        return false
+    }
+    if fully_overlap(left, right) {
+        return true
+    }
+    let real_min = std::cmp::min(left.min, right.min);
+    let real_max = std::cmp::max(left.max, right.max);
+    for i in real_min..real_max {
+        if left.has(&i) && right.has(&i) {
+            return true
+        }
+    }
+    false
 }
 
 pub fn from_str(string : &str) -> Range {

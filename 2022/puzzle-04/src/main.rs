@@ -14,7 +14,8 @@ fn parse_line(line : &String) -> (Range, Range) {
 fn main() {
 
     // Reading
-    let mut full_overlap_count: i32 = 0; 
+    let mut full_overlap_count: i32 = 0;
+    let mut overlap_count : i32 = 0;
     let stdin : io::Stdin = io::stdin();
     let mut lines = stdin.lock().lines();
     loop {
@@ -22,7 +23,10 @@ fn main() {
             let line_str = line.expect("Unable to read line");
             let (l, r) = parse_line(&line_str);
             if range::fully_overlap(&l, &r) {
-                full_overlap_count+=1;
+                full_overlap_count += 1;
+            }
+            if range::overlap(&l, &r) {
+                overlap_count += 1;
             }
         }
         else {
@@ -30,5 +34,5 @@ fn main() {
         }
     }
 
-    println!("Full overlap count={}", full_overlap_count);
+    println!("Overlap count {} (full {})", overlap_count, full_overlap_count);
 }
