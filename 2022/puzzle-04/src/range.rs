@@ -30,20 +30,7 @@ pub fn fully_overlap(left: &Range, right: &Range) -> bool {
 }
 
 pub fn overlap(left: &Range, right: &Range) -> bool {
-    if left.max < right.min || right.max < left.min {
-        return false
-    }
-    if fully_overlap(left, right) {
-        return true
-    }
-    let real_min = std::cmp::min(left.min, right.min);
-    let real_max = std::cmp::max(left.max, right.max);
-    for i in real_min..real_max {
-        if left.has(&i) && right.has(&i) {
-            return true
-        }
-    }
-    false
+    !(left.max < right.min || right.max < left.min)
 }
 
 pub fn from_str(string : &str) -> Range {
