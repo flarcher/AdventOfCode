@@ -145,7 +145,7 @@ fn flush_sizes(by_folder: &mut HashMap<String, u32>, size: u32, folder: &String)
     }
 }
 
-fn process(file_name: &String, folder_max_size: u32) -> u32 {
+fn read_file(file_name: &String) -> HashMap<String, u32> {
 
     // IO variables
     let f = File::open(file_name).expect("Unable to open file");
@@ -203,8 +203,16 @@ fn process(file_name: &String, folder_max_size: u32) -> u32 {
         flush_sizes(&mut folders, total_size, &pwd);
     }
 
-    // Computation
-    //println!("Result is {:?}", folders);
+    folders
+}
+
+#[test]
+fn test_1() {
+    let rs = read_file(&"test.log".to_string());
+    assert_eq!(95437, sum_of_less_than(&rs, 100000));
+}
+
+fn sum_of_less_than(folders: &HashMap<String, u32>, folder_max_size: u32) -> u32 {
     folders.values()
         .map(|e| *e)
         .filter(|size| size <= &folder_max_size)
@@ -213,20 +221,45 @@ fn process(file_name: &String, folder_max_size: u32) -> u32 {
 }
 
 #[test]
-fn test_1() {
-    let rs = process(&"test.log".to_string(), 100000);
-    assert_eq!(95437, rs);
+fn test_2() {
+    let rs = read_file(&"test.log".to_string());
+    assert_eq!(24933642, smallest_greater_than(&rs, 8381165));
 }
+
+fn smallest_greater_than(folders: &HashMap<String, u32>, folder_min_size: u32) -> u32 {
+    folders.values()
+        .map(|e| *e)
+        .filter(|size| size >= &folder_min_size)
+        .reduce(|acc, e| u32::min(acc, e))
+        .expect("No value?")
+}
+
+// Maximum used space for an update
+// (See part2 description)
+static MAX_STORAGE_SIZE : u32 = 70_000_000 - 30_000_000;
 
 fn main() {
     // Arguments parsing
     let arguments = env::args().collect::<Vec<String>>();
     let mut arg_iter = arguments.iter();
     arg_iter.next().expect("Command name");
+    // file name (input.log)
     let file_name = arg_iter.next().expect("No file name given");
-    let folder_max_size : u32 = arg_iter.next()
-        .map_or(100000, |arg| arg.parse().expect("Invalid size"));
+    // Threshold (100000 for part1)
+    let size_threshold : u32 = arg_iter.next()
+        .map(|arg| arg.parse().expect("Invalid size"))
+        .unwrap_or(100000);
 
-    let result = process(file_name, folder_max_size);
-    println!("Result is {}", result);
+    // Processing
+    let result = read_file(file_name);
+    let used_space = result.get(DELIMITER).expect("No root dir?");
+    println!("Used space: {}", used_space);
+
+    // Outputs
+    let part1_rs = sum_of_less_than(&result, size_threshold);
+    println!("Sum of sizes of directory with less than {} is {}", size_threshold, part1_rs);
+
+    let required_space = used_space - MAX_STORAGE_SIZE;
+    let part2_rs = smallest_greater_than(&result, required_space);
+    println!("Size of smallest folder which can be removed in order to reclaim the required space {} : {}", required_space, part2_rs);
 }
